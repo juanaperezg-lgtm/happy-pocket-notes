@@ -47,6 +47,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        rose: "hsl(var(--rose))",
+        sage: "hsl(var(--sage))",
+        cream: "hsl(var(--cream))",
+        category: {
+          food: "hsl(var(--cat-food))",
+          transport: "hsl(var(--cat-transport))",
+          health: "hsl(var(--cat-health))",
+          home: "hsl(var(--cat-home))",
+          personal: "hsl(var(--cat-personal))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
