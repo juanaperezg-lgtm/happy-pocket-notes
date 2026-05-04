@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TransactionKind {
+  expense
+  income
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+  journals     JournalEntry[]
+  settings     UserSettings?
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        TransactionKind
+  category    String
+  amountCents Int
+  date        DateTime
+  note        String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId, date])
+}
+
+model JournalEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model UserSettings {
+  userId            String   @id
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  language          String   @default("es")
+  locale            String   @default("es-CO")
+  currency          String   @default("COP")
+  monthlyBudgetCents Int     @default(0)
+  categoryBudgets   Json?
+  updatedAt         DateTime @updatedAt
+}

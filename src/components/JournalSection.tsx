@@ -2,28 +2,74 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { JournalEntry } from "@/lib/tracker-store";
+import { JournalEntry, Language } from "@/lib/tracker-store";
 import { format, parseISO } from "date-fns";
 import { BookHeart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
+  language: Language;
   entries: JournalEntry[];
-  onAdd: (e: { date: string; text: string }) => void;
-  onRemove: (id: string) => void;
+  onAdd: (e: { date: string; text: string }) => Promise<void> | void;
+  onRemove: (id: string) => Promise<void> | void;
 }
 
-export const JournalSection = ({ entries, onAdd, onRemove }: Props) => {
+const TEXT = {
+  es: {
+    title: "Notas del día",
+    placeholder: "¿Qué hiciste, viste o compraste hoy? Escribe con calma...",
+    save: "Guardar nota",
+    saved: "Guardado en tu diario 🌸",
+    saveError: "No se pudo guardar la nota",
+    empty: "Aún no hay notas, tu diario te espera.",
+    deleteTitle: "Eliminar nota",
+    deleteDescription: "Esta nota se eliminará de forma permanente.",
+    deleteConfirm: "Eliminar",
+    deleteCancel: "Cancelar",
+    deleteError: "No se pudo eliminar la nota",
+  },
+  en: {
+    title: "Today's notes",
+    placeholder: "What did you do, see, or buy today? Write freely...",
+    save: "Save note",
+    saved: "Saved to your journal 🌸",
+    saveError: "We couldn't save the note",
+    empty: "No notes yet — your journal is waiting.",
+    deleteTitle: "Delete note",
+    deleteDescription: "This note will be permanently deleted.",
+    deleteConfirm: "Delete",
+    deleteCancel: "Cancel",
+    deleteError: "We couldn't delete the note",
+  },
+} as const;
+
+export const JournalSection = ({ language, entries, onAdd, onRemove }: Props) => {
+  const t = TEXT[language];
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
   const [text, setText] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    onAdd({ date, text: text.trim() });
-    setText("");
-    toast.success("Saved to your journal 🌸");
+    try {
+      await onAdd({ date, text: text.trim() });
+      setText("");
+      toast.success(t.saved);
+    } catch {
+      toast.error(t.saveError);
+    }
   };
 
   const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
@@ -32,7 +78,7 @@ export const JournalSection = ({ entries, onAdd, onRemove }: Props) => {
     <div className="cozy-card p-6 space-y-5">
       <div className="flex items-center gap-2">
         <BookHeart className="h-5 w-5 text-primary" />
-        <h3 className="font-serif text-2xl">Today's notes</h3>
+        <h3 className="font-serif text-2xl">{t.title}</h3>
       </div>
 
       <form onSubmit={submit} className="space-y-3">
@@ -40,18 +86,18 @@ export const JournalSection = ({ entries, onAdd, onRemove }: Props) => {
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="What did you do, see, or buy today? Write freely..."
+          placeholder={t.placeholder}
           rows={4}
           className="rounded-2xl bg-background resize-none"
         />
         <Button type="submit" className="rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80">
-          Save note
+          {t.save}
         </Button>
       </form>
 
       <div className="space-y-3 pt-2">
         {sorted.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No notes yet — your journal is waiting.</p>
+          <p className="text-sm text-muted-foreground italic">{t.empty}</p>
         )}
         {sorted.map((j) => (
           <div key={j.id} className="group rounded-2xl bg-accent/40 p-4 border border-border/40">
@@ -60,7 +106,10 @@ export const JournalSection = ({ entries, onAdd, onRemove }: Props) => {
                 {format(parseISO(j.date), "EEEE, MMM d")}
               </div>
               <button
-                onClick={() => onRemove(j.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setPendingDeleteId(j.id);
+                }}
                 className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition"
                 aria-label="Delete note"
               >
@@ -71,6 +120,31 @@ export const JournalSection = ({ entries, onAdd, onRemove }: Props) => {
           </div>
         ))}
       </div>
+
+      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+        <AlertDialogContent className="rounded-3xl border-border bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{t.deleteDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">{t.deleteCancel}</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDeleteId) {
+                  void onRemove(pendingDeleteId).catch(() => {
+                    toast.error(t.deleteError);
+                  });
+                }
+                setPendingDeleteId(null);
+              }}
+            >
+              {t.deleteConfirm}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
