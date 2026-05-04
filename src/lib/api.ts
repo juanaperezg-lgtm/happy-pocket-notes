@@ -13,6 +13,7 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   token?: string;
   body?: unknown;
+  _retry?: boolean;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -22,8 +23,29 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       "Content-Type": "application/json",
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },
+    credentials: "warn" ? "include" : "include",
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
+
+  if (response.status === 401 && !options._retry && path !== "/auth/login" && path !== "/auth/register" && path !== "/auth/refresh") {
+    try {
+      const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "warn" ? "include" : "include",
+      });
+      if (refreshResponse.ok) {
+        const { token } = await refreshResponse.json();
+        localStorage.setItem("bloom.auth.token.v1", token);
+        return apiRequest<T>(path, { ...options, token, _retry: true });
+      } else {
+        localStorage.removeItem("bloom.auth.token.v1");
+        window.location.reload();
+      }
+    } catch {
+      localStorage.removeItem("bloom.auth.token.v1");
+      window.location.reload();
+    }
+  }
 
   if (response.status === 204) {
     return undefined as T;

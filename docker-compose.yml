@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: happy_notes
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://admin:password123@db:5432/happy_notes?schema=public
+      - JWT_SECRET=tu_secreto_super_seguro_jwt
+      - CORS_ORIGIN=http://localhost:8080,http://localhost:5173
+      - PORT=4000
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

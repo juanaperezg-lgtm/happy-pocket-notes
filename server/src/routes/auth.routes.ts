@@ -3,8 +3,9 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http-error";
-import { signToken } from "../lib/jwt";
+import { signToken, signRefreshToken, verifyToken } from "../lib/jwt";
 import { requireAuth } from "../middleware/auth";
+import { authLimiter } from "../middleware/rate-limit";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const registerSchema = z.object({
   password: z.string().min(8),
 });
 
-router.post("/register", async (req, res, next) => {
+router.post("/register", authLimiter, async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
 
@@ -38,6 +39,14 @@ router.post("/register", async (req, res, next) => {
     });
 
     const token = signToken({ sub: user.id, email: user.email });
+    const refreshToken = signRefreshToken({ sub: user.id, email: user.email });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
     return res.status(201).json({
       token,
       user: {
@@ -51,7 +60,7 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-router.post("/login", async (req, res, next) => {
+router.post("/login", authLimiter, async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
     const user = await prisma.user.findUnique({
@@ -64,6 +73,14 @@ router.post("/login", async (req, res, next) => {
     if (!validPassword) throw new HttpError(401, "Invalid credentials");
 
     const token = signToken({ sub: user.id, email: user.email });
+    const refreshToken = signRefreshToken({ sub: user.id, email: user.email });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
     return res.json({
       token,
       user: {
@@ -96,6 +113,37 @@ router.get("/me", requireAuth, async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+router.post("/refresh", async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) throw new HttpError(401, "No refresh token");
+
+    const decoded = verifyToken(refreshToken, "refresh");
+    const user = await prisma.user.findUnique({ where: { id: decoded.sub } });
+    if (!user) throw new HttpError(401, "User not found");
+
+    const token = signToken({ sub: user.id, email: user.email });
+    const newRefreshToken = signRefreshToken({ sub: user.id, email: user.email });
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({ token });
+  } catch (error) {
+    res.clearCookie("refreshToken");
+    return next(new HttpError(401, "Invalid refresh token"));
+  }
+});
+
+router.post("/logout", (req, res) => {
+  res.clearCookie("refreshToken");
+  return res.json({ message: "Logged out" });
 });
 
 export const authRoutes = router;

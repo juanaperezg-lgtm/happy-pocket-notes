@@ -370,7 +370,12 @@ export function useTracker() {
     await maybeMigrateLocalData(response.token, payload);
   }, [fetchBootstrap, maybeMigrateLocalData]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await apiRequest("/auth/logout", { method: "POST" });
+    } catch {
+      // skip errors
+    }
     localStorage.removeItem(AUTH_TOKEN_KEY);
     setToken(null);
     setUser(null);

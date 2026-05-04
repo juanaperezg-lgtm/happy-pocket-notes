@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useTracker, fmtMoney, Transaction } from "@/lib/tracker-store";
+import { useTracker, fmtMoney, Transaction, Expense } from "@/lib/tracker-store";
 import { SummaryCards } from "@/components/SummaryCards";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { JournalSection } from "@/components/JournalSection";
@@ -11,6 +11,7 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InsightsPanel } from "@/components/InsightsPanel";
 import { AuthCard } from "@/components/AuthCard";
+import { Onboarding } from "@/components/Onboarding";
 import { addMonths, endOfWeek, format, startOfWeek } from "date-fns";
 import { toast } from "sonner";
 
@@ -93,7 +94,7 @@ const Index = () => {
   );
 
   const periodExpenses = useMemo(
-    () => periodTransactions.filter((tx) => tx.kind === "expense"),
+    () => periodTransactions.filter((tx): tx is Expense => tx.kind === "expense"),
     [periodTransactions],
   );
   const periodSpent = periodExpenses.reduce((s, e) => s + e.amount, 0);
@@ -122,6 +123,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Onboarding language={settings.language} />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <header className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>

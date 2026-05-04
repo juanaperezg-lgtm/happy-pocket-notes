@@ -10,7 +10,7 @@ export const requireAuth = (req: Request, _res: Response, next: NextFunction) =>
 
   const token = authHeader.slice("Bearer ".length).trim();
   try {
-    req.auth = verifyToken(token);
+    req.auth = verifyToken(token, "access");
     return next();
   } catch {
     return next(new HttpError(401, "Invalid or expired token"));

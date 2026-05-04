@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { HttpError } from "../lib/http-error";
+import { logger } from "../lib/logger";
 
 export const notFound = (_req: Request, _res: Response, next: NextFunction) => {
   next(new HttpError(404, "Route not found"));
@@ -22,6 +23,6 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, _next
     return res.status(status).json({ message });
   }
 
-  console.error(error);
+  logger.error(error);
   return res.status(500).json({ message: "Internal server error" });
 };
