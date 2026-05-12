@@ -4,16 +4,18 @@ WORKDIR /app
 
 # Instalar dependencias
 COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps
+# Instalamos todas las dependencias incluyendo dev para poder compilar el frontend
+RUN npm install
 
 # Copiar el código fuente
 COPY . .
 
-# Generar Prisma Client
+# Construir la PWA frontend y generar Prisma Client
+RUN npm run build
 RUN npx prisma generate
 
 # Exponer el puerto
 EXPOSE 4000
 
-# Comando de inicio
-CMD ["npm", "run", "server:start"]
+# Comando de inicio: corre las migraciones y luego inicia el servidor
+CMD npx prisma migrate deploy && npm run server:start
