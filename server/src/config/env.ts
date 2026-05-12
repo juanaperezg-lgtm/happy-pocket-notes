@@ -13,6 +13,7 @@ const schema = z.object({
   BACKUP_DIR: z.string().default("server/backups"),
   BACKUP_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   PG_DUMP_PATH: z.string().default("pg_dump"),
+  RENDER_EXTERNAL_URL: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
