@@ -14,6 +14,11 @@ COPY . .
 # Generar Prisma Client primero (necesario para el build del server)
 RUN npx prisma generate
 
+# Variable de entorno para el frontend build — /api porque frontend y backend
+# corren en el mismo servicio de Render
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+
 # Construir la PWA frontend
 RUN npm run build
 
